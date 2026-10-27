@@ -336,6 +336,41 @@ tr.is-editing { background: color-mix(in srgb, var(--primary) 10%, transparent);
 .history__amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .history__empty { color: var(--muted); display: block !important; }
 
+/* Investments */
+.account-field { display: flex; align-items: center; gap: .6rem; }
+.account-field select { width: auto; min-width: 15rem; max-width: 100%; }
+.card--cash { --accent: #06b6d4; }
+.card--invested { --accent: #6366f1; }
+.card--deposited { --accent: #10b981; }
+.card--pnl { --accent: #f59e0b; }
+.card__value.is-positive { color: var(--income); }
+.alert {
+  margin: 0 0 1rem; padding: .7rem .9rem; border-radius: var(--radius-sm); font-size: .9rem;
+  background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+}
+.hold-hint { margin: -.4rem 0 0; color: var(--muted); font-size: .85rem; }
+.hold-hint:empty { display: none; }
+.form__error { margin: 0; }
+.ticker { font-weight: 700; overflow-wrap: anywhere; }
+td.cell-main > * + * { margin-left: .5rem; }
+.tag--small { font-size: .75rem; padding: .1rem .5rem; }
+.cell-sub { display: block; color: var(--muted); font-size: .8rem; margin-top: .15rem; }
+.table--ops .cell-date { white-space: nowrap; }
+.stack { display: grid; gap: 1.5rem; }
+.form--inv { grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); align-items: start; }
+.form--inv .form-row { display: contents; }
+.form--inv .field--comment { grid-column: span 2; }
+.form--inv .hold-hint, .form--inv .form__error, .form--inv .form__actions { grid-column: 1 / -1; margin: 0; }
+.form--inv .form__actions { justify-content: flex-start; }
+.form--inv .form__actions .btn--primary { flex: 0 1 14rem; }
+.table .num--light { font-weight: 500; color: var(--muted); }
+.input.input--price { width: 7.5rem; padding: .35rem .5rem; text-align: right; }
+.hold-totals { margin: .75rem 0 0; }
+.bars__label--dense { font-size: 11px; }
+.acc-item { grid-template-columns: minmax(0, 1fr) auto auto; }
+.acc-add { grid-template-columns: minmax(0, 1fr) auto; }
+
 /* Footer & toast */
 .footer { color: var(--muted); font-size: .85rem; text-align: center; padding: 1rem 0 2rem; }
 .toast {
@@ -364,6 +399,9 @@ tr.is-editing { background: color-mix(in srgb, var(--primary) 10%, transparent);
   .nav__list li { flex: 1; }
   .nav__link { justify-content: center; padding: .5rem .4rem; font-size: .9rem; }
   .cards--3 { grid-template-columns: 1fr; }
+  .cards.cards--inv { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+  .cards--inv .card { padding: 1rem; }
+  .cards--inv .card__value { font-size: 1.25rem; }
 }
 @media (max-width: 640px) {
   .cards { grid-template-columns: 1fr; }
@@ -393,6 +431,31 @@ tr.is-editing { background: color-mix(in srgb, var(--primary) 10%, transparent);
   .table td[data-label="Комментарий"] { grid-column: 1; }
   .table td.actions-cell { grid-column: 1 / -1; }
   .actions { justify-content: flex-start; }
+
+  /* Investments: tables → cards with labels */
+  .account-field { width: 100%; }
+  .account-field select { flex: 1; min-width: 0; width: 100%; }
+  .table--inv tr { grid-template-columns: 1fr; gap: .35rem; }
+  .table--inv td { display: flex; justify-content: space-between; align-items: center; gap: .75rem; text-align: right; }
+  .table--inv td::before { content: attr(data-label); color: var(--muted); font-size: .8rem; font-weight: 600; text-align: left; white-space: normal; }
+  .table--inv td.cell-main, .table--inv td.cell-date, .table--inv td.actions-cell { justify-content: flex-start; text-align: left; }
+  .table--inv td.cell-main::before, .table--inv td.cell-date::before, .table--inv td.actions-cell::before { content: none; }
+  .table--inv td.cell-main { font-size: 1.05rem; }
+  .table--inv td.cell-main { flex-wrap: wrap; gap: .25rem .6rem; }
+  .table--inv td.cell-main > * + * { margin-left: 0; }
+  .table--inv .cell-sub { display: inline; margin: 0; }
+  .table--inv td:not(.cell-main) > .ticker { margin-left: auto; }
+  .table--inv td:not(.cell-main) > .ticker + .cell-sub { margin-left: -.35rem; }
+  .table--inv td[data-label="Сумма"] { grid-row: auto; grid-column: auto; font-size: 1.05rem; }
+  .table--inv td[data-label="Комментарий"] { grid-column: auto; }
+  .table--inv .input--price { width: 9rem; }
+  .form--inv .field--comment { grid-column: 1 / -1; }
+  .form--inv .form__actions .btn--primary { flex: 1; }
+  .bars__label--dense { font-size: 15px; }
+}
+@media (max-width: 520px) {
+  .nav__link { flex-direction: column; gap: 0; padding: .35rem .2rem; font-size: .78rem; line-height: 1.2; }
+  .nav__icon { font-size: 1.1rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }

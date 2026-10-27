@@ -455,11 +455,70 @@
   });
 
   /* =========================================================
+   * Кольцевая диаграмма (SVG)
+   * ======================================================= */
+  function arcPath(cx, cy, r, ri, a0, a1) {
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    const pt = (rad, a) => `${cx + rad * Math.cos(a)} ${cy + rad * Math.sin(a)}`;
+    return `M${pt(r, a0)} A${r} ${r} 0 ${large} 1 ${pt(r, a1)} L${pt(ri, a1)} A${ri} ${ri} 0 ${large} 0 ${pt(ri, a0)} Z`;
+  }
+
+  /**
+   * Рисует кольцевую диаграмму и легенду. items: [{ name, value, color }] (уже отсортированы).
+   * desc — <title> внутри svg (сохраняется), title — подпись для описания, centerLabel — текст в центре.
+   */
+  function drawDonut({ svg, desc, legend, items, title, centerLabel, emptyText }) {
+    const total = items.reduce((s, it) => s + it.value, 0);
+    Array.from(svg.childNodes).forEach((n) => { if (n !== desc) svg.removeChild(n); });
+    legend.innerHTML = '';
+
+    const cx = 100, cy = 100, r = 90, ri = 58;
+    if (!items.length) {
+      svg.append(svgEl('circle', { cx, cy, r: (r + ri) / 2, fill: 'none', stroke: 'var(--surface-2)', 'stroke-width': r - ri }));
+      legend.append(el('li', { class: 'legend__empty', text: emptyText }));
+    }
+    let a = -Math.PI / 2;
+    items.forEach((it) => {
+      const frac = it.value / total;
+      let shape;
+      if (frac >= 0.9999) {
+        shape = svgEl('circle', { cx, cy, r: (r + ri) / 2, fill: 'none', stroke: it.color, 'stroke-width': r - ri });
+      } else {
+        const a1 = a + frac * Math.PI * 2;
+        shape = svgEl('path', { d: arcPath(cx, cy, r, ri, a, a1), fill: it.color });
+        a = a1;
+      }
+      shape.append(svgEl('title', {}, `${it.name}: ${money.format(it.value)} (${Math.round(frac * 100)}%)`));
+      svg.append(shape);
+
+      legend.append(el('li', {}, [
+        el('span', { class: 'legend__dot', style: `background:${it.color}`, 'aria-hidden': 'true' }),
+        el('span', { text: it.name }),
+        el('span', { class: 'legend__value' }, [
+          money.format(it.value),
+          el('span', { class: 'legend__pct', text: `${(frac * 100).toFixed(frac < 0.1 ? 1 : 0).replace('.', ',')}%` })
+        ])
+      ]));
+    });
+    svg.append(
+      svgEl('text', { x: cx, y: cy - 6, 'text-anchor': 'middle', class: 'chart__center-label' }, centerLabel),
+      svgEl('text', { x: cx, y: cy + 14, 'text-anchor': 'middle', class: 'chart__center-value' },
+        new Intl.NumberFormat('ru-RU', {
+          style: 'currency', currency: 'RUB', notation: total >= 1e6 ? 'compact' : 'standard', maximumFractionDigits: 0
+        }).format(total))
+    );
+    desc.textContent = items.length
+      ? `${title}: ${items.map((it) => `${it.name} ${money.format(it.value)}`).join(', ')}`
+      : emptyText;
+  }
+
+  /* =========================================================
    * CSV
    * ======================================================= */
   function csvCell(v) {
     let s = String(v == null ? '' : v);
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // защита от CSV-инъекций
+    // Защита от CSV-инъекций; обычные числа (в том числе отрицательные) оставляем как есть.
+    if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(,\d+)?$/.test(s)) s = `'${s}`;
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   }
   const csvAmount = (n) => n.toFixed(2).replace('.', ',');
@@ -698,19 +757,25 @@
   /**
    * Общая инициализация: тема, диалоги, загрузка данных, демо при первом визите,
    * синхронизация между вкладками и при возврате по истории. render() — отрисовка страницы.
+   * Страница со своими данными передаёт { keys, reload }: при изменении этих ключей
+   * в другой вкладке (и при возврате из bfcache) вызывается reload() перед render().
    */
-  function initPage(render) {
+  function initPage(render, { keys = [], reload = null } = {}) {
     initTheme();
     document.querySelectorAll('dialog').forEach(registerDialog);
     loadState();
     seedOnFirstVisit();
 
+    const resync = () => {
+      loadState({ persist: false });
+      if (reload) reload();
+      render();
+    };
     global.addEventListener('storage', (e) => {
       if (e.key === KEYS.theme) {
         if (e.newValue === 'dark' || e.newValue === 'light') applyTheme(e.newValue);
-      } else if (e.key === null || DATA_KEYS.includes(e.key)) {
-        loadState({ persist: false });
-        render();
+      } else if (e.key === null || DATA_KEYS.includes(e.key) || keys.includes(e.key)) {
+        resync();
       }
     });
     // Страница восстановлена из bfcache (кнопка «назад») — данные могли измениться на другой странице.
@@ -720,8 +785,7 @@
         const saved = localStorage.getItem(KEYS.theme);
         if (saved === 'dark' || saved === 'light') applyTheme(saved);
       } catch (err) { /* localStorage недоступен */ }
-      loadState({ persist: false });
-      render();
+      resync();
     });
     render();
   }
@@ -736,13 +800,13 @@
     round2, parseAmount, isColor, cleanName, sameName, byDateDesc,
     toast, setError, clearErrors, clearOnInput, retargetSelect,
     // хранилище
-    saveTransactions, saveGoals, normalizeGoal, addDemoData,
+    readJSON, writeJSON, saveTransactions, saveGoals, normalizeGoal, addDemoData, demoDate,
     // категории
     findCategory, categoryColor, categoryNameExists, createCategoryManager,
     // расчёты
     totals, freeBalance, findGoal, goalSaved, goalDone, totalInGoals,
     // диалоги и CSV
-    openDialog, closeDialog, csvAmount, downloadCsv,
+    openDialog, closeDialog, csvAmount, downloadCsv, drawDonut,
     initPage
   });
 })(window);

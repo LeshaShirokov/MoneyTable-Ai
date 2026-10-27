@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MoneyTable — учёт операций по брокерским счетам">
+  <title>Инвестиции — MoneyTable</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script src="js/theme.js"></script>
+</head>
+<body data-page="investments">
+  <a class="skip-link" href="#main">Перейти к содержимому</a>
+
+  <header class="header">
+    <div class="container header__inner">
+      <a class="logo" href="index.html" aria-label="MoneyTable — на главную">
+        <span class="logo__icon" aria-hidden="true">₽</span>
+        <span class="logo__text" aria-hidden="true">Money<span>Table</span></span>
+      </a>
+      <nav class="nav" aria-label="Разделы">
+        <ul class="nav__list">
+          <li><a class="nav__link" href="index.html"><span class="nav__icon" aria-hidden="true">📊</span>Статистика</a></li>
+          <li><a class="nav__link" href="goals.html"><span class="nav__icon" aria-hidden="true">🐷</span>Копилки</a></li>
+          <li><a class="nav__link" href="journal.html"><span class="nav__icon" aria-hidden="true">📒</span>Журнал</a></li>
+          <li><a class="nav__link" href="investments.html" aria-current="page"><span class="nav__icon" aria-hidden="true">💼</span>Инвестиции</a></li>
+        </ul>
+      </nav>
+      <button id="themeToggle" class="btn btn--icon" type="button" aria-label="Переключить тему" title="Переключить тему">
+        <span class="theme-icon theme-icon--sun" aria-hidden="true">☀️</span>
+        <span class="theme-icon theme-icon--moon" aria-hidden="true">🌙</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main" class="container main" tabindex="-1">
+    <h1 class="page-title">Инвестиции</h1>
+
+    <section class="period panel panel--compact" aria-label="Брокерский счёт">
+      <div class="period__controls">
+        <div class="field account-field">
+          <label for="accFilter">Счёт</label>
+          <select id="accFilter"></select>
+        </div>
+      </div>
+      <button type="button" class="btn btn--ghost" data-open-accounts>⚙ Счета</button>
+    </section>
+
+    <section class="cards cards--3 cards--inv" aria-label="Сводка по портфелю">
+      <article class="card card--cash">
+        <h2 class="card__title">Деньги на счёте</h2>
+        <p class="card__value" id="sumCash" aria-live="polite">0 ₽</p>
+        <p class="card__hint" id="cashHint">Свободный остаток у брокера</p>
+      </article>
+      <article class="card card--invested">
+        <h2 class="card__title">Вложено в бумаги</h2>
+        <p class="card__value" id="sumInvested" aria-live="polite">0 ₽</p>
+        <p class="card__hint" id="investedHint">По средней цене покупки</p>
+      </article>
+      <article class="card card--deposited">
+        <h2 class="card__title">Внесено на счёт</h2>
+        <p class="card__value" id="sumDeposited" aria-live="polite">0 ₽</p>
+        <p class="card__hint" id="depositedHint">Выведено: 0 ₽</p>
+      </article>
+      <article class="card card--income">
+        <h2 class="card__title">Дивиденды и купоны</h2>
+        <p class="card__value" id="sumIncomeInv" aria-live="polite">0 ₽</p>
+        <p class="card__hint" id="incomeHint">Получено за всё время</p>
+      </article>
+      <article class="card card--expense">
+        <h2 class="card__title">Комиссии и налоги</h2>
+        <p class="card__value" id="sumCosts" aria-live="polite">0 ₽</p>
+        <p class="card__hint">Все комиссии и налоги</p>
+      </article>
+      <article class="card card--pnl">
+        <h2 class="card__title">Реализованный результат</h2>
+        <p class="card__value" id="sumRealized" aria-live="polite">0 ₽</p>
+        <p class="card__hint">Прибыль/убыток от продаж по средней цене</p>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="holdTitle">
+      <div class="panel__head">
+        <h2 class="panel__title" id="holdTitle">Портфель</h2>
+      </div>
+      <p class="panel__note">Текущая цена вводится <strong>вручную</strong> и хранится только в браузере: котировки не загружаются. Без цены позиция оценивается по стоимости покупки.</p>
+      <p class="alert" id="dataWarning" role="alert" hidden></p>
+      <div class="table-wrap">
+        <table class="table table--inv">
+          <caption class="sr-only">Позиции в портфеле</caption>
+          <thead>
+            <tr>
+              <th scope="col">Бумага</th>
+              <th scope="col" class="num">Кол-во</th>
+              <th scope="col" class="num">Ср. цена</th>
+              <th scope="col" class="num">Стоимость покупки</th>
+              <th scope="col" class="num">Доля</th>
+              <th scope="col" class="num">Текущая цена (вручную)</th>
+              <th scope="col" class="num">Оценка</th>
+              <th scope="col" class="num">Нереализ. результат</th>
+            </tr>
+          </thead>
+          <tbody id="holdBody"></tbody>
+        </table>
+        <p class="empty" id="holdEmpty" hidden>Открытых позиций нет.</p>
+      </div>
+      <p class="list-totals hold-totals" id="holdTotals" aria-live="polite"></p>
+    </section>
+
+    <div class="grid grid--stats">
+      <section class="panel" aria-labelledby="structTitle">
+        <div class="panel__head">
+          <h2 class="panel__title" id="structTitle">Структура портфеля</h2>
+          <fieldset class="segmented segmented--inline">
+            <legend class="sr-only">Группировка диаграммы</legend>
+            <input type="radio" name="structBy" id="structTicker" value="ticker" checked>
+            <label for="structTicker">По бумагам</label>
+            <input type="radio" name="structBy" id="structClass" value="class">
+            <label for="structClass">По классам</label>
+          </fieldset>
+        </div>
+        <div class="chart">
+          <svg id="structChart" class="chart__svg" viewBox="0 0 200 200" role="img" aria-labelledby="structDesc">
+            <title id="structDesc">Структура портфеля</title>
+          </svg>
+          <ul class="legend" id="structLegend" aria-label="Легенда структуры портфеля"></ul>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="flowTitle">
+        <h2 class="panel__title" id="flowTitle">Пополнения и выводы по месяцам</h2>
+        <svg id="flowChart" class="bars" viewBox="0 0 600 236" role="img" aria-labelledby="flowDesc">
+          <title id="flowDesc">Пополнения и выводы по месяцам</title>
+        </svg>
+        <div class="bars__foot">
+          <ul class="bars__legend" aria-hidden="true">
+            <li><span class="legend__dot bars__key--income"></span>Пополнения</li>
+            <li><span class="legend__dot bars__key--expense"></span>Выводы</li>
+          </ul>
+          <p class="panel__note bars__note" id="flowNote"></p>
+        </div>
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="panel" aria-labelledby="formTitle">
+        <div class="panel__head">
+          <h2 class="panel__title" id="formTitle">Новая операция</h2>
+        </div>
+        <form id="opForm" class="form form--inv" novalidate>
+          <input type="hidden" id="opId">
+          <div class="field">
+            <div class="field__row">
+              <label for="opAccount">Счёт</label>
+              <button type="button" class="link-btn" data-open-accounts>Настроить</button>
+            </div>
+            <select id="opAccount" required></select>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="opType">Тип операции</label>
+              <select id="opType" required>
+                <option value="deposit">Пополнение счёта</option>
+                <option value="withdraw">Вывод средств</option>
+                <option value="buy">Покупка</option>
+                <option value="sell">Продажа</option>
+                <option value="dividend">Дивиденды</option>
+                <option value="coupon">Купоны</option>
+                <option value="fee">Комиссия</option>
+                <option value="tax">Налог</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="opDate">Дата</label>
+              <input type="date" id="opDate" required aria-describedby="opDateError">
+              <span class="field__error" id="opDateError" role="alert"></span>
+            </div>
+          </div>
+          <div class="form-row" id="securityFields">
+            <div class="field">
+              <label for="opTicker">Тикер или название</label>
+              <input type="text" id="opTicker" list="tickerList" maxlength="24" autocomplete="off" placeholder="Например: SBER" aria-describedby="opTickerError holdHint">
+              <datalist id="tickerList"></datalist>
+              <span class="field__error" id="opTickerError" role="alert"></span>
+            </div>
+            <div class="field">
+              <label for="opClass">Класс актива</label>
+              <select id="opClass">
+                <option value="stock">Акции</option>
+                <option value="bond">Облигации</option>
+                <option value="fund">Фонды/ETF</option>
+                <option value="currency">Валюта</option>
+                <option value="other">Другое</option>
+              </select>
+            </div>
+          </div>
+          <p class="hold-hint" id="holdHint" aria-live="polite"></p>
+          <div class="form-row" id="tradeFields">
+            <div class="field">
+              <label for="opQty">Количество, шт.</label>
+              <input type="number" id="opQty" inputmode="decimal" min="0" step="any" placeholder="0" aria-describedby="opQtyError">
+              <span class="field__error" id="opQtyError" role="alert"></span>
+            </div>
+            <div class="field">
+              <label for="opPrice">Цена за штуку, ₽</label>
+              <input type="number" id="opPrice" inputmode="decimal" min="0" step="any" placeholder="0,00" aria-describedby="opPriceError">
+              <span class="field__error" id="opPriceError" role="alert"></span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="opAmount" id="opAmountLabel">Сумма, ₽</label>
+              <input type="number" id="opAmount" inputmode="decimal" min="0" step="0.01" placeholder="0,00" aria-describedby="opAmountError">
+              <span class="field__error" id="opAmountError" role="alert"></span>
+            </div>
+            <div class="field" id="feeField">
+              <label for="opFee">Комиссия, ₽</label>
+              <input type="number" id="opFee" inputmode="decimal" min="0" step="0.01" placeholder="0,00" aria-describedby="opFeeError">
+              <span class="field__error" id="opFeeError" role="alert"></span>
+            </div>
+          </div>
+          <div class="field field--comment">
+            <label for="opComment">Комментарий</label>
+            <input type="text" id="opComment" maxlength="120" placeholder="Необязательно">
+          </div>
+          <p class="field__error form__error" id="opFormError" role="alert"></p>
+          <div class="form__actions">
+            <button type="submit" class="btn btn--primary" id="opSubmit">Добавить</button>
+            <button type="button" class="btn btn--ghost" id="opCancel" hidden>Отмена</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="opsTitle">
+        <div class="panel__head">
+          <h2 class="panel__title" id="opsTitle">Операции по счёту</h2>
+          <div class="toolbar">
+            <button type="button" class="btn btn--ghost" id="exportCsv">⬇ Экспорт CSV</button>
+            <button type="button" class="btn btn--ghost" id="loadDemo">Демо-данные</button>
+            <button type="button" class="btn btn--danger" id="clearInvest">Очистить</button>
+          </div>
+        </div>
+
+        <form class="filters" id="filters" role="search" aria-label="Фильтры операций" onsubmit="return false">
+          <div class="field">
+            <label for="fType">Тип</label>
+            <select id="fType">
+              <option value="all">Все</option>
+              <option value="deposit">Пополнение счёта</option>
+              <option value="withdraw">Вывод средств</option>
+              <option value="buy">Покупка</option>
+              <option value="sell">Продажа</option>
+              <option value="dividend">Дивиденды</option>
+              <option value="coupon">Купоны</option>
+              <option value="fee">Комиссия</option>
+              <option value="tax">Налог</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fClass">Класс актива</label>
+            <select id="fClass">
+              <option value="all">Все</option>
+              <option value="stock">Акции</option>
+              <option value="bond">Облигации</option>
+              <option value="fund">Фонды/ETF</option>
+              <option value="currency">Валюта</option>
+              <option value="other">Другое</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fTicker">Бумага</label>
+            <select id="fTicker"><option value="all">Все</option></select>
+          </div>
+          <div class="field">
+            <label for="fFrom">С даты</label>
+            <input type="date" id="fFrom">
+          </div>
+          <div class="field">
+            <label for="fTo">По дату</label>
+            <input type="date" id="fTo">
+          </div>
+          <div class="field">
+            <label for="fSort">Сортировка</label>
+            <select id="fSort">
+              <option value="date-desc">Дата ↓ (новые)</option>
+              <option value="date-asc">Дата ↑ (старые)</option>
+              <option value="amount-desc">Сумма ↓</option>
+              <option value="amount-asc">Сумма ↑</option>
+              <option value="ticker">Бумага (А→Я)</option>
+            </select>
+          </div>
+          <div class="field field--grow">
+            <label for="fSearch">Поиск</label>
+            <input type="search" id="fSearch" placeholder="Тикер, комментарий, счёт">
+          </div>
+          <button type="button" class="btn btn--ghost filters__reset" id="resetFilters">Сбросить</button>
+        </form>
+
+        <p class="alert" id="opsError" role="alert" hidden></p>
+        <p class="list-totals" id="listTotals" aria-live="polite"></p>
+        <div class="table-wrap">
+          <table class="table table--inv table--ops">
+            <caption class="sr-only">Операции по брокерским счетам</caption>
+            <thead>
+              <tr>
+                <th scope="col">Дата</th>
+                <th scope="col">Операция</th>
+                <th scope="col">Бумага</th>
+                <th scope="col" class="num">Кол-во × цена</th>
+                <th scope="col" class="num">Сумма</th>
+                <th scope="col" class="num">Комиссия</th>
+                <th scope="col">Комментарий</th>
+                <th scope="col"><span class="sr-only">Действия</span></th>
+              </tr>
+            </thead>
+            <tbody id="opsBody"></tbody>
+          </table>
+          <p class="empty" id="opsEmpty" hidden>Операций пока нет.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <dialog class="dialog" id="accDialog" aria-labelledby="accDialogTitle">
+    <div class="dialog__body">
+      <div class="dialog__head">
+        <h2 id="accDialogTitle">Брокерские счета</h2>
+        <button type="button" class="btn btn--icon" data-close aria-label="Закрыть">✕</button>
+      </div>
+      <p class="field__error" id="accError" role="alert"></p>
+      <ul class="cat-list" id="accList" aria-label="Список счетов"></ul>
+      <form class="cat-add acc-add" id="accAddForm" novalidate>
+        <input type="text" class="input" id="accNewName" maxlength="40" placeholder="Например: ИИС" aria-label="Название нового счёта" aria-describedby="accNewNameError" autocomplete="off">
+        <button type="submit" class="btn btn--primary">Добавить</button>
+        <span class="field__error cat-add__error" id="accNewNameError" role="alert"></span>
+      </form>
+      <p class="dialog__note">Удаление счёта удаляет и все его операции. Изменения сохраняются сразу.</p>
+    </div>
+  </dialog>
+
+  <footer class="footer">
+    <div class="container">MoneyTable · данные хранятся только в вашем браузере</div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/common.js"></script>
+  <script src="js/investments.js"></script>
+</body>
+</html>

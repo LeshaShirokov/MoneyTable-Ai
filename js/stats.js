@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const MT = window.MoneyTable;
-  const { state, money, el, svgEl, $ } = MT;
+  const { state, money, svgEl, $ } = MT;
   const MONTHS_IN_CHART = 6;
   const compact = new Intl.NumberFormat('ru-RU', { notation: 'compact', maximumFractionDigits: 1 });
   const shortMonth = new Intl.DateTimeFormat('ru-RU', { month: 'short' });
@@ -51,67 +51,20 @@
   }
 
   /* ---------- Кольцевая диаграмма ---------- */
-  function arcPath(cx, cy, r, ri, a0, a1) {
-    const large = a1 - a0 > Math.PI ? 1 : 0;
-    const pt = (rad, a) => `${cx + rad * Math.cos(a)} ${cy + rad * Math.sin(a)}`;
-    return `M${pt(r, a0)} A${r} ${r} 0 ${large} 1 ${pt(r, a1)} L${pt(ri, a1)} A${ri} ${ri} 0 ${large} 0 ${pt(ri, a0)} Z`;
-  }
-
   function renderDonut(month, type) {
     const labels = LABELS[type];
     const byCat = new Map();
-    let total = 0;
     state.transactions.forEach((t) => {
       if (t.type !== type || (month && t.date.slice(0, 7) !== month)) return;
       byCat.set(t.category, (byCat.get(t.category) || 0) + t.amount);
-      total += t.amount;
     });
-    const items = Array.from(byCat, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-
+    const items = Array.from(byCat, ([name, value]) => ({ name, value, color: MT.categoryColor(type, name) }))
+      .sort((a, b) => b.value - a.value);
     els.chartTitle.textContent = labels.title;
-    const svg = els.chart;
-    Array.from(svg.childNodes).forEach((n) => { if (n !== els.chartDesc) svg.removeChild(n); });
-    els.legend.innerHTML = '';
-
-    const cx = 100, cy = 100, r = 90, ri = 58;
-    if (!items.length) {
-      svg.append(svgEl('circle', { cx, cy, r: (r + ri) / 2, fill: 'none', stroke: 'var(--surface-2)', 'stroke-width': r - ri }));
-      els.legend.append(el('li', { class: 'legend__empty', text: labels.empty }));
-    }
-    let a = -Math.PI / 2;
-    items.forEach((it) => {
-      const frac = it.value / total;
-      const color = MT.categoryColor(type, it.name);
-      let shape;
-      if (frac >= 0.9999) {
-        shape = svgEl('circle', { cx, cy, r: (r + ri) / 2, fill: 'none', stroke: color, 'stroke-width': r - ri });
-      } else {
-        const a1 = a + frac * Math.PI * 2;
-        shape = svgEl('path', { d: arcPath(cx, cy, r, ri, a, a1), fill: color });
-        a = a1;
-      }
-      shape.append(svgEl('title', {}, `${it.name}: ${money.format(it.value)} (${Math.round(frac * 100)}%)`));
-      svg.append(shape);
-
-      els.legend.append(el('li', {}, [
-        el('span', { class: 'legend__dot', style: `background:${color}`, 'aria-hidden': 'true' }),
-        el('span', { text: it.name }),
-        el('span', { class: 'legend__value' }, [
-          money.format(it.value),
-          el('span', { class: 'legend__pct', text: `${(frac * 100).toFixed(frac < 0.1 ? 1 : 0).replace('.', ',')}%` })
-        ])
-      ]));
+    MT.drawDonut({
+      svg: els.chart, desc: els.chartDesc, legend: els.legend, items,
+      title: labels.title, centerLabel: labels.total, emptyText: labels.empty
     });
-    svg.append(
-      svgEl('text', { x: cx, y: cy - 6, 'text-anchor': 'middle', class: 'chart__center-label' }, labels.total),
-      svgEl('text', { x: cx, y: cy + 14, 'text-anchor': 'middle', class: 'chart__center-value' },
-        new Intl.NumberFormat('ru-RU', {
-          style: 'currency', currency: 'RUB', notation: total >= 1e6 ? 'compact' : 'standard', maximumFractionDigits: 0
-        }).format(total))
-    );
-    els.chartDesc.textContent = items.length
-      ? `${labels.title}: ${items.map((it) => `${it.name} ${money.format(it.value)}`).join(', ')}`
-      : labels.empty;
   }
 
   /* ---------- Доходы и расходы по месяцам ---------- */
