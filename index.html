@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="MoneyTable — простой учёт личных финансов в браузере">
+  <meta name="description" content="MoneyTable — простой учёт личных финансов и копилок в браузере">
   <title>MoneyTable — учёт финансов</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
@@ -34,7 +34,7 @@
   </header>
 
   <main id="main" class="container main">
-    <section class="cards" aria-label="Сводка за выбранный период">
+    <section class="cards" aria-label="Сводка">
       <article class="card card--balance">
         <h2 class="card__title">Баланс</h2>
         <p class="card__value" id="sumBalance" aria-live="polite">0 ₽</p>
@@ -50,11 +50,20 @@
         <p class="card__value" id="sumExpense" aria-live="polite">0 ₽</p>
         <p class="card__hint" id="countExpense">0 операций</p>
       </article>
+      <article class="card card--free">
+        <h2 class="card__title">Свободный остаток</h2>
+        <p class="card__value" id="sumFree" aria-live="polite" aria-describedby="freeNote">0 ₽</p>
+        <p class="card__hint" id="freeHint">В копилках: 0 ₽</p>
+        <p class="sr-only" id="freeNote">Баланс за всё время минус деньги, отложенные в копилки</p>
+      </article>
     </section>
 
     <div class="grid">
       <section class="panel" aria-labelledby="formTitle">
-        <h2 class="panel__title" id="formTitle">Новая операция</h2>
+        <div class="panel__head">
+          <h2 class="panel__title" id="formTitle">Новая операция</h2>
+          <button type="button" class="btn btn--ghost btn--small" data-open-categories>⚙ Категории</button>
+        </div>
         <form id="txForm" class="form" novalidate>
           <input type="hidden" id="txId">
           <fieldset class="segmented">
@@ -72,7 +81,10 @@
           </div>
 
           <div class="field">
-            <label for="category">Категория</label>
+            <div class="field__row">
+              <label for="category">Категория</label>
+              <button type="button" class="link-btn" data-open-categories>Настроить</button>
+            </div>
             <select id="category" name="category" required aria-describedby="categoryError"></select>
             <span class="field__error" id="categoryError" role="alert"></span>
           </div>
@@ -106,11 +118,25 @@
       </section>
     </div>
 
+    <section class="panel" aria-labelledby="goalsTitle">
+      <div class="panel__head">
+        <h2 class="panel__title" id="goalsTitle">Копилки</h2>
+        <div class="toolbar">
+          <button type="button" class="btn btn--ghost" id="exportGoalsCsv">⬇ Экспорт копилок</button>
+          <button type="button" class="btn btn--primary" id="addGoal">+ Новая копилка</button>
+        </div>
+      </div>
+      <p class="panel__note">Пополнение копилки не считается расходом: деньги остаются в балансе, но уменьшают «Свободный остаток».</p>
+      <div class="goals" id="goalsList"></div>
+      <p class="empty" id="goalsEmpty" hidden>Копилок пока нет. Создайте первую цель — например, «Отпуск» или «Подушка безопасности».</p>
+    </section>
+
     <section class="panel" aria-labelledby="listTitle">
       <div class="panel__head">
         <h2 class="panel__title" id="listTitle">Операции</h2>
         <div class="toolbar">
           <button type="button" class="btn btn--ghost" id="exportCsv">⬇ Экспорт CSV</button>
+          <button type="button" class="btn btn--ghost" data-open-categories>⚙ Категории</button>
           <button type="button" class="btn btn--ghost" id="loadDemo">Демо-данные</button>
           <button type="button" class="btn btn--danger" id="clearAll">Очистить всё</button>
         </div>
@@ -163,7 +189,7 @@
           </thead>
           <tbody id="txBody"></tbody>
         </table>
-        <p class="empty" id="emptyState" hidden>Операций пока нет. Добавьте первую с помощью формы выше.</p>
+        <p class="empty" id="emptyState" hidden>Операций пока нет.</p>
       </div>
     </section>
   </main>
@@ -171,6 +197,128 @@
   <footer class="footer">
     <div class="container">MoneyTable · данные хранятся только в вашем браузере</div>
   </footer>
+
+  <!-- Менеджер категорий -->
+  <dialog class="dialog" id="catDialog" aria-labelledby="catDialogTitle">
+    <div class="dialog__body">
+      <div class="dialog__head">
+        <h2 id="catDialogTitle">Категории</h2>
+        <button type="button" class="btn btn--icon" data-close aria-label="Закрыть">✕</button>
+      </div>
+      <fieldset class="segmented">
+        <legend class="sr-only">Тип категорий</legend>
+        <input type="radio" name="catType" id="catTypeExpense" value="expense" checked>
+        <label for="catTypeExpense">Расходы</label>
+        <input type="radio" name="catType" id="catTypeIncome" value="income">
+        <label for="catTypeIncome">Доходы</label>
+      </fieldset>
+      <p class="field__error" id="catError" role="alert"></p>
+      <ul class="cat-list" id="catList" aria-label="Список категорий"></ul>
+      <form class="cat-add" id="catAddForm" novalidate>
+        <input type="color" class="color-input" id="catNewColor" value="#6366f1" aria-label="Цвет новой категории">
+        <input type="text" class="input" id="catNewName" maxlength="30" placeholder="Новая категория" aria-label="Название новой категории" aria-describedby="catNewNameError">
+        <button type="submit" class="btn btn--primary">Добавить</button>
+        <span class="field__error cat-add__error" id="catNewNameError" role="alert"></span>
+      </form>
+      <p class="dialog__note">Переименование обновит все операции этой категории. Изменения сохраняются сразу.</p>
+    </div>
+  </dialog>
+
+  <!-- Удаление используемой категории -->
+  <dialog class="dialog dialog--small" id="catDelDialog" aria-labelledby="catDelTitle">
+    <form class="dialog__body" id="catDelForm" novalidate>
+      <div class="dialog__head">
+        <h2 id="catDelTitle">Удалить категорию</h2>
+        <button type="button" class="btn btn--icon" data-close aria-label="Закрыть">✕</button>
+      </div>
+      <p id="catDelText"></p>
+      <div class="field">
+        <label for="catDelTarget">Перенести операции в</label>
+        <select id="catDelTarget"></select>
+      </div>
+      <div class="dialog__actions">
+        <button type="button" class="btn btn--ghost" data-close>Отмена</button>
+        <button type="submit" class="btn btn--danger">Удалить и перенести</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Создание и редактирование копилки -->
+  <dialog class="dialog" id="goalDialog" aria-labelledby="goalDialogTitle">
+    <form class="dialog__body" id="goalForm" novalidate>
+      <div class="dialog__head">
+        <h2 id="goalDialogTitle">Новая копилка</h2>
+        <button type="button" class="btn btn--icon" data-close aria-label="Закрыть">✕</button>
+      </div>
+      <input type="hidden" id="goalId">
+      <div class="field">
+        <label for="goalName">Название</label>
+        <input type="text" id="goalName" maxlength="40" placeholder="Например: Отпуск" required aria-describedby="goalNameError">
+        <span class="field__error" id="goalNameError" role="alert"></span>
+      </div>
+      <div class="field">
+        <label for="goalTarget">Цель, ₽</label>
+        <input type="number" id="goalTarget" inputmode="decimal" min="1" step="0.01" placeholder="100000" required aria-describedby="goalTargetError">
+        <span class="field__error" id="goalTargetError" role="alert"></span>
+      </div>
+      <div class="field">
+        <label for="goalDeadline">Срок (необязательно)</label>
+        <input type="date" id="goalDeadline" aria-describedby="goalDeadlineError">
+        <span class="field__error" id="goalDeadlineError" role="alert"></span>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="goalEmoji">Эмодзи</label>
+          <input type="text" id="goalEmoji" maxlength="8" placeholder="🎯">
+        </div>
+        <div class="field">
+          <label for="goalColor">Цвет</label>
+          <input type="color" class="color-input color-input--wide" id="goalColor" value="#6366f1">
+        </div>
+      </div>
+      <div class="dialog__actions">
+        <button type="button" class="btn btn--ghost" data-close>Отмена</button>
+        <button type="submit" class="btn btn--primary" id="goalSubmit">Создать</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Пополнение / снятие -->
+  <dialog class="dialog dialog--small" id="moveDialog" aria-labelledby="moveTitle">
+    <form class="dialog__body" id="moveForm" novalidate>
+      <div class="dialog__head">
+        <h2 id="moveTitle">Копилка</h2>
+        <button type="button" class="btn btn--icon" data-close aria-label="Закрыть">✕</button>
+      </div>
+      <input type="hidden" id="moveGoalId">
+      <fieldset class="segmented">
+        <legend class="sr-only">Действие</legend>
+        <input type="radio" name="moveKind" id="moveDeposit" value="deposit" checked>
+        <label for="moveDeposit">Пополнить</label>
+        <input type="radio" name="moveKind" id="moveWithdraw" value="withdraw">
+        <label for="moveWithdraw">Снять</label>
+      </fieldset>
+      <p class="dialog__note" id="moveHint" aria-live="polite"></p>
+      <div class="field">
+        <label for="moveAmount">Сумма, ₽</label>
+        <input type="number" id="moveAmount" inputmode="decimal" min="0.01" step="0.01" placeholder="0,00" required aria-describedby="moveAmountError">
+        <span class="field__error" id="moveAmountError" role="alert"></span>
+      </div>
+      <div class="field">
+        <label for="moveDate">Дата</label>
+        <input type="date" id="moveDate" required aria-describedby="moveDateError">
+        <span class="field__error" id="moveDateError" role="alert"></span>
+      </div>
+      <div class="field">
+        <label for="moveComment">Комментарий</label>
+        <input type="text" id="moveComment" maxlength="120" placeholder="Необязательно">
+      </div>
+      <div class="dialog__actions">
+        <button type="button" class="btn btn--ghost" data-close>Отмена</button>
+        <button type="submit" class="btn btn--primary" id="moveSubmit">Пополнить</button>
+      </div>
+    </form>
+  </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
