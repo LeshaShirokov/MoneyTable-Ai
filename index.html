@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MoneyTable — простой учёт личных финансов в браузере">
+  <title>MoneyTable — учёт финансов</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('moneytable-theme');
+        if (!t) t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Перейти к содержимому</a>
+
+  <header class="header">
+    <div class="container header__inner">
+      <div class="logo" aria-label="MoneyTable">
+        <span class="logo__icon" aria-hidden="true">₽</span>
+        <span class="logo__text">Money<span>Table</span></span>
+      </div>
+      <button id="themeToggle" class="btn btn--icon" type="button" aria-label="Переключить тему" title="Переключить тему">
+        <span class="theme-icon theme-icon--sun" aria-hidden="true">☀️</span>
+        <span class="theme-icon theme-icon--moon" aria-hidden="true">🌙</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main" class="container main">
+    <section class="cards" aria-label="Сводка за выбранный период">
+      <article class="card card--balance">
+        <h2 class="card__title">Баланс</h2>
+        <p class="card__value" id="sumBalance" aria-live="polite">0 ₽</p>
+        <p class="card__hint" id="periodLabel">За всё время</p>
+      </article>
+      <article class="card card--income">
+        <h2 class="card__title">Доходы</h2>
+        <p class="card__value" id="sumIncome" aria-live="polite">0 ₽</p>
+        <p class="card__hint" id="countIncome">0 операций</p>
+      </article>
+      <article class="card card--expense">
+        <h2 class="card__title">Расходы</h2>
+        <p class="card__value" id="sumExpense" aria-live="polite">0 ₽</p>
+        <p class="card__hint" id="countExpense">0 операций</p>
+      </article>
+    </section>
+
+    <div class="grid">
+      <section class="panel" aria-labelledby="formTitle">
+        <h2 class="panel__title" id="formTitle">Новая операция</h2>
+        <form id="txForm" class="form" novalidate>
+          <input type="hidden" id="txId">
+          <fieldset class="segmented">
+            <legend class="sr-only">Тип операции</legend>
+            <input type="radio" name="type" id="typeExpense" value="expense" checked>
+            <label for="typeExpense">Расход</label>
+            <input type="radio" name="type" id="typeIncome" value="income">
+            <label for="typeIncome">Доход</label>
+          </fieldset>
+
+          <div class="field">
+            <label for="amount">Сумма, ₽</label>
+            <input type="number" id="amount" name="amount" inputmode="decimal" min="0.01" step="0.01" placeholder="0,00" required aria-describedby="amountError">
+            <span class="field__error" id="amountError" role="alert"></span>
+          </div>
+
+          <div class="field">
+            <label for="category">Категория</label>
+            <select id="category" name="category" required aria-describedby="categoryError"></select>
+            <span class="field__error" id="categoryError" role="alert"></span>
+          </div>
+
+          <div class="field">
+            <label for="date">Дата</label>
+            <input type="date" id="date" name="date" required aria-describedby="dateError">
+            <span class="field__error" id="dateError" role="alert"></span>
+          </div>
+
+          <div class="field">
+            <label for="comment">Комментарий</label>
+            <input type="text" id="comment" name="comment" maxlength="120" placeholder="Например: продукты в магазине">
+          </div>
+
+          <div class="form__actions">
+            <button type="submit" class="btn btn--primary" id="submitBtn">Добавить</button>
+            <button type="button" class="btn btn--ghost" id="cancelEdit" hidden>Отмена</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="chartTitle">
+        <h2 class="panel__title" id="chartTitle">Расходы по категориям</h2>
+        <div class="chart">
+          <svg id="chart" class="chart__svg" viewBox="0 0 200 200" role="img" aria-labelledby="chartDesc">
+            <title id="chartDesc">Диаграмма расходов по категориям</title>
+          </svg>
+          <ul class="legend" id="legend" aria-label="Легенда диаграммы"></ul>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel" aria-labelledby="listTitle">
+      <div class="panel__head">
+        <h2 class="panel__title" id="listTitle">Операции</h2>
+        <div class="toolbar">
+          <button type="button" class="btn btn--ghost" id="exportCsv">⬇ Экспорт CSV</button>
+          <button type="button" class="btn btn--ghost" id="loadDemo">Демо-данные</button>
+          <button type="button" class="btn btn--danger" id="clearAll">Очистить всё</button>
+        </div>
+      </div>
+
+      <form class="filters" id="filters" role="search" aria-label="Фильтры операций" onsubmit="return false">
+        <div class="field">
+          <label for="fType">Тип</label>
+          <select id="fType">
+            <option value="all">Все</option>
+            <option value="income">Доходы</option>
+            <option value="expense">Расходы</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="fCategory">Категория</label>
+          <select id="fCategory"><option value="all">Все</option></select>
+        </div>
+        <div class="field">
+          <label for="fMonth">Месяц</label>
+          <input type="month" id="fMonth">
+        </div>
+        <div class="field field--grow">
+          <label for="fSearch">Поиск</label>
+          <input type="search" id="fSearch" placeholder="Комментарий или категория">
+        </div>
+        <div class="field">
+          <label for="fSort">Сортировка</label>
+          <select id="fSort">
+            <option value="date-desc">Дата ↓ (новые)</option>
+            <option value="date-asc">Дата ↑ (старые)</option>
+            <option value="amount-desc">Сумма ↓</option>
+            <option value="amount-asc">Сумма ↑</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn--ghost filters__reset" id="resetFilters">Сбросить</button>
+      </form>
+
+      <div class="table-wrap">
+        <table class="table">
+          <caption class="sr-only">Список операций</caption>
+          <thead>
+            <tr>
+              <th scope="col">Дата</th>
+              <th scope="col">Категория</th>
+              <th scope="col">Комментарий</th>
+              <th scope="col" class="num">Сумма</th>
+              <th scope="col"><span class="sr-only">Действия</span></th>
+            </tr>
+          </thead>
+          <tbody id="txBody"></tbody>
+        </table>
+        <p class="empty" id="emptyState" hidden>Операций пока нет. Добавьте первую с помощью формы выше.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">MoneyTable · данные хранятся только в вашем браузере</div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
